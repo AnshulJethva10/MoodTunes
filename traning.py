@@ -134,7 +134,7 @@ callbacks = [earlystop, checkpoint, reduce_lr]
 
 model.compile(
     loss='categorical_crossentropy',
-    optimizer=Adam(lr=0.001),
+    optimizer=Adam(learning_rate=0.001),
     metrics=['accuracy']
 )
 
