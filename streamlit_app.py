@@ -30,49 +30,68 @@ if 'fixed_emotion' not in st.session_state:
 
 # Streamlit UI
 st.title("🎭 Emotion Detector with Playlist")
-st.markdown("Detect your emotion using webcam after a countdown, and get a matching YouTube playlist 🎵")
+st.markdown("Detect your emotion using webcam after a countdown, or upload a photo, and get a matching YouTube playlist 🎵")
 
-# Step 1: Capture Image
+# Step 1: Capture or Upload Image
+use_webcam = False
 if st.button("📸 Start Detection"):
     cap = cv2.VideoCapture(0)
-    st.markdown("### ⏱️ Countdown:")
-    countdown_text = st.empty()
-    
-    for i in range(3, 0, -1):
-        countdown_text.markdown(f"**{i}...**")
-        time.sleep(1)
-    countdown_text.markdown("**Capturing Image...**")
-    time.sleep(0.5)
-
-    ret, frame = cap.read()
-    cap.release()
-
-    if not ret:
-        st.error("Failed to capture image from webcam.")
+    if cap is None or not cap.isOpened():
+        st.warning("⚠️ Unable to access webcam. Please upload an image instead.")
     else:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_classifier.detectMultiScale(gray, 1.3, 5)
-        emotion = None
+        use_webcam = True
+        st.markdown("### ⏱️ Countdown:")
+        countdown_text = st.empty()
 
-        for (x, y, w, h) in faces:
-            roi_gray = gray[y:y+h, x:x+w]
-            roi_gray = cv2.resize(roi_gray, (48, 48), interpolation=cv2.INTER_AREA)
+        for i in range(3, 0, -1):
+            countdown_text.markdown(f"**{i}...**")
+            time.sleep(1)
+        countdown_text.markdown("**Capturing Image...**")
+        time.sleep(0.5)
 
-            if np.sum([roi_gray]) != 0:
-                roi = roi_gray.astype('float') / 255.0
-                roi = img_to_array(roi)
-                roi = np.expand_dims(roi, axis=0)
+        ret, frame = cap.read()
+        cap.release()
 
-                preds = model.predict(roi)[0]
-                emotion = class_labels[np.argmax(preds)]
-                cv2.putText(frame, emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        if not ret:
+            st.error("Failed to capture image from webcam.")
+            use_webcam = False
+        else:
+            st.session_state.frame = frame
 
+# Fallback: Upload Image
+if not use_webcam and st.session_state.frame is None:
+    uploaded_file = st.file_uploader("📤 Upload an image (jpg/png)", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, 1)
         st.session_state.frame = frame
-        st.session_state.emotion = emotion
-        st.session_state.fixed_emotion = None
 
-# Step 2: Show Detection Results
+# Step 2: Detect Emotion
+if st.session_state.frame is not None and st.session_state.emotion is None:
+    frame = st.session_state.frame
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_classifier.detectMultiScale(gray, 1.3, 5)
+    emotion = None
+
+    for (x, y, w, h) in faces:
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_gray = cv2.resize(roi_gray, (48, 48), interpolation=cv2.INTER_AREA)
+
+        if np.sum([roi_gray]) != 0:
+            roi = roi_gray.astype('float') / 255.0
+            roi = img_to_array(roi)
+            roi = np.expand_dims(roi, axis=0)
+
+            preds = model.predict(roi)[0]
+            emotion = class_labels[np.argmax(preds)]
+            cv2.putText(frame, emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+    st.session_state.frame = frame
+    st.session_state.emotion = emotion
+    st.session_state.fixed_emotion = None
+
+# Step 3: Show Detection Results
 if st.session_state.frame is not None:
     st.image(cv2.cvtColor(st.session_state.frame, cv2.COLOR_BGR2RGB), caption="Detected Frame")
     if st.session_state.emotion:
@@ -90,7 +109,7 @@ if st.session_state.frame is not None:
     else:
         st.warning("No face detected. Please try again.")
 
-# Step 3: Show Playlist
+# Step 4: Show Playlist
 if st.session_state.fixed_emotion:
     st.markdown(f"### 🎶 Playing {st.session_state.fixed_emotion} Playlist:")
     components.iframe(emotion_links[st.session_state.fixed_emotion], height=400)
