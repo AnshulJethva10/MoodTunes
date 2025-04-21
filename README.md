@@ -1,4 +1,4 @@
-# Instructions to follow
+# Instructions to follow !
 ### 1. Create a conda environment
 Create a new conda environment named [`tf`](https://www.tensorflow.org/api_docs/python/tf) with the following command.
 ```shell
@@ -49,4 +49,5 @@ To get this program working, you'll need to:
 	- You can customize these with your own preferred playlists
 	- Get playlist URIs from Spotify by right-clicking a playlist and selecting "Share > Copy Spotify URI"
 
-## This is Streamlit version of the Project. We have created a website for this [Here](https://moodtune.surge.sh/)
+## Great! You're all set!
+## This is Streamlit version of the Project. We have created a website for this [Here](https://moodtune.surge.sh
